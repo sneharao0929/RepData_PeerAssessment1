@@ -6,20 +6,103 @@ output:
 ---
 
 
-## Loading and preprocessing the data
+###  Loading and preprocessing the data
+```{r Process Data, echo =TRUE  }
+library(ggplot2)
+library(lattice)
+
+setwd("C:/coursera/ReproducibleResearch")
+
+data <- read.csv("activity.csv", colClasses = c("integer", "Date", "factor"))
+dim(data)
+
+cleanData <- na.omit(data)
+cleanData$month <- as.numeric(format(cleanData$date, "%m"))
+rownames(cleanData) <- 1:nrow(cleanData)
+head(cleanData)
+```
+
+### What is mean total number of steps taken per day?
+
+``` {r }
+totalSteps <- aggregate(cleanData$steps, list(Date = cleanData$date), FUN = "sum")$x
+mean(totalSteps)
+median(totalSteps)
+
+```
+``` {r figure1, fig.height=5}
+ggplot(cleanData, aes(date, steps)) + geom_bar(stat = "identity", colour = "blue", fill = "blue", width = 0.7) + 
+        facet_grid(. ~ month, scales = "free") +
+        labs(title = "Histogram of Total Number of Steps Taken Each Day", x = "Date", y = "Total number of steps")
+```
+        
+### What is the average daily activity pattern?
+
+```{r}
+avgSteps <- aggregate(cleanData$steps, list(interval = as.numeric(as.character(cleanData$interval))), FUN = "mean")
+names(avgSteps)[2] <- "avgSteps"
+
+```
+``` {r figure2, fig.height=5}
+ggplot(avgSteps, aes(interval, avgSteps)) + geom_line(color = "blue", size = 0.8) + labs(title = "Time Series Plot of 5-minute Interval", x = "5-minute intervals", y = "Average Number of Steps Taken")
+
+```
 
 
+### Imputing missing values
 
-## What is mean total number of steps taken per day?
+```{r}
+sum(is.na(data))
+
+newData <- data 
+for (i in 1:nrow(newData)) {
+        if (is.na(newData$steps[i])) {
+                newData$steps[i] <- avgSteps[which(newData$interval[i] == avgSteps$interval), ]$avgSteps
+        
+        }
+}
+
+head(newData)
+sum(is.na(newData ))
 
 
+```
 
-## What is the average daily activity pattern?
+``` {rfigure3, fig.height=5}
+ggplot(newData, aes(date, steps)) + geom_bar(stat = "identity",
+                                             colour = "blue",
+                                             fill = "blue",
+                                             width = 0.8) 
+
+```
 
 
+### Are there differences in activity patterns between weekdays and weekends?
 
-## Imputing missing values
+```{r}
+newData$weekdays <- factor(format(newData$date, "%A"))
+
+head(newData$weekdays)
+
+levels(newData$weekdays) <- list(weekday = c("Monday", "Tuesday",
+                                             "Wednesday", 
+                                             "Thursday", "Friday"),
+                                 weekend = c("Saturday", "Sunday"))
 
 
+avgSteps <- aggregate(newData$steps, 
+                      list(interval = as.numeric(as.character(newData$interval)), 
+                           weekdays = newData$weekdays),
+                      FUN = "mean")
+names(avgSteps)[3] <- "meanOfSteps"
 
-## Are there differences in activity patterns between weekdays and weekends?
+
+```
+
+
+``` {r figure4 }
+
+xyplot(avgSteps$meanOfSteps ~ avgSteps$interval | avgSteps$weekdays, 
+       layout = c(1, 2), type = "l", 
+       xlab = "Interval", ylab = "Number of steps")
+```
